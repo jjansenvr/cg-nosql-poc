@@ -1,0 +1,6 @@
+nl\gemeente\zaken\ZakenApplication.class
+nl\gemeente\zaken\benchmark\BenchmarkSeeder.class
+nl\gemeente\zaken\upcaster\ZaakV1NaarV1_1Upcaster.class
+nl\gemeente\zaken\api\ZaakController.class
+nl\gemeente\zaken\api\ZgwCompatController.class
+nl\gemeente\zaken\model\ZaakDocument.class

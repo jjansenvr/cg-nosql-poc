@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: Zaken API (nieuw, aggregaat)
+  version: "1.1"
+  description: |
+    Zaakdossier als één temporeel JSON-document. Elke wijziging schrijft een nieuwe versie (append-only);
+    met `peildatum` is elke eerdere toestand opvraagbaar. Het blok `eigenschappen` wordt gevalideerd tegen
+    het JSON Schema dat bij het `zaaktype` in de schema-registry staat.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/zaken:
+    post:
+      operationId: registreerZaak
+      summary: Registreer een nieuwe zaak
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Zaak"
+      responses:
+        "200":
+          description: Zaak geregistreerd; de body is de UUID van de nieuwe zaak.
+          content:
+            application/json:
+              schema:
+                type: string
+                format: uuid
+        "400":
+          description: Ongeldige request (ontbrekend of leeg verplicht veld).
+        "500":
+          description: "`eigenschappen` voldoet niet aan het JSON Schema van het zaaktype, of er is geen schema voor het zaaktype geregistreerd."
+  /api/v1/zaken/{uuid}:
+    parameters:
+      - name: uuid
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    get:
+      operationId: haalZaakOp
+      summary: Haal het volledige zaakdossier op (zaak, statussen, rollen, eigenschappen)
+      parameters:
+        - name: peildatum
+          in: query
+          required: false
+          description: Toestand op dit moment. Standaard het huidige moment.
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Het zaakdossier, indien nodig geüpcast naar de huidige schemaversie.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ZaakDossier"
+        "404":
+          description: Geen zaak met deze UUID op de peildatum.
+    put:
+      operationId: wijzigZaak
+      summary: Vervang het zaakdossier (schrijft een nieuwe versie)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Zaak"
+      responses:
+        "204":
+          description: Nieuwe versie opgeslagen.
+        "400":
+          description: Ongeldige request.
+        "404":
+          description: Zaak bestaat niet.
+        "500":
+          description: "`eigenschappen` voldoet niet aan het JSON Schema van het zaaktype."
+components:
+  schemas:
+    Zaak:
+      type: object
+      required: [identificatie, bronorganisatie, zaaktype, registratiedatum]
+      properties:
+        identificatie:
+          type: string
+          minLength: 1
+        bronorganisatie:
+          type: string
+          minLength: 1
+        zaaktype:
+          type: string
+          minLength: 1
+          description: Sleutel (URL) waarmee het JSON Schema voor `eigenschappen` wordt opgezocht.
+        registratiedatum:
+          type: string
+          format: date
+        actueleStatus:
+          $ref: "#/components/schemas/Status"
+        statusHistorie:
+          type: array
+          items:
+            $ref: "#/components/schemas/Status"
+        rollen:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rol"
+        eigenschappen:
+          type: object
+          additionalProperties: true
+          description: Verplicht; gevalideerd tegen het JSON Schema van het zaaktype.
+    ZaakDossier:
+      allOf:
+        - $ref: "#/components/schemas/Zaak"
+        - type: object
+          description: Velden zonder waarde komen als `null` terug.
+    Status:
+      type: object
+      nullable: true
+      properties:
+        datumStatusGezet:
+          type: string
+        statustoelichting:
+          type: string
+    Rol:
+      type: object
+      properties:
+        betrokkeneType:
+          type: string
+        omschrijvingGeneriek:
+          type: string
+        roltoelichting:
+          type: string

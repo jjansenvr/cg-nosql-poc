@@ -1,0 +1,5 @@
+nl\commonground\engine\repository\TemporeelDocumentRepository.class
+nl\commonground\engine\schema\DocumentUpcaster.class
+nl\commonground\engine\schema\SchemaRegistryService$SchemaValidatieException.class
+nl\commonground\engine\model\HistorieEnvelop.class
+nl\commonground\engine\schema\SchemaRegistryService.class

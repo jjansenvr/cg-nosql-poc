@@ -1,0 +1,79 @@
+services:
+  # 1. Database voor jouw Java NoSQL PoC
+  postgres-nosql:
+    image: postgres:16-alpine
+    container_name: bench-postgres-nosql
+    environment:
+      POSTGRES_DB: commonground_poc
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # 2. Database & Redis voor Open Zaak
+  postgres-openzaak:
+    image: postgis/postgis:17-3.5
+    container_name: bench-postgres-openzaak
+    environment:
+      POSTGRES_DB: openzaak
+      POSTGRES_USER: openzaak
+      POSTGRES_PASSWORD: secret
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U openzaak"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:8
+    container_name: bench-redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # 3. Open Zaak API (met Redis caching & connection pooling)
+  openzaak:
+    image: openzaak/open-zaak:latest
+    container_name: bench-openzaak
+    depends_on:
+      postgres-openzaak:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DJANGO_SETTINGS_MODULE: openzaak.conf.docker
+      SECRET_KEY: benchmark-geheime-sleutel-niet-voor-productie
+      DB_HOST: postgres-openzaak
+      DB_NAME: openzaak
+      DB_USER: openzaak
+      DB_PASSWORD: secret
+      DB_POOL_ENABLED: "True"
+      IS_HTTPS: "no"
+      SITE_DOMAIN: localhost:8000
+      ALLOWED_HOSTS: localhost,127.0.0.1,openzaak
+      CORS_ALLOW_ALL_ORIGINS: "True"
+      CSRF_TRUSTED_ORIGINS: http://localhost:8000
+      CACHE_DEFAULT: redis:6379/0
+      CACHE_AXES: redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      OPENZAAK_SUPERUSER_USERNAME: admin
+      DJANGO_SUPERUSER_PASSWORD: admin
+      OPENZAAK_SUPERUSER_EMAIL: admin@localhost
+      DISABLE_2FA: "true"
+      OTEL_SDK_DISABLED: "true"
+      LOG_LEVEL: WARNING
+    ports:
+      - "8000:8000"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
